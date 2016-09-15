@@ -38,7 +38,8 @@ public class Sender extends STPConnection {
     private int retransmitted = 0;
     private int duplicateACK = 0;
 
-
+    private RTTCalculator calculator;
+    private static boolean CALCULATOR = false;
 
     public Sender(final String address, final int port, byte[] data, int mws, int mss, int timeout, double pdrop, long seed) throws SocketException {
         super();
@@ -67,6 +68,9 @@ public class Sender extends STPConnection {
         watchdog.reset();
         //=============================== Listen ==========================
         MAX_PACKET = mws / mss;
+        if(CALCULATOR){
+            calculator = new RTTCalculator();
+        }
         listen(0);
 
     }
@@ -106,6 +110,9 @@ public class Sender extends STPConnection {
                 drops++;
                 return;
             }
+        }
+        if(calculator != null){
+            calculator.onPacketSend(packet);
         }
         super.sendPacket(packet);
     }
@@ -253,7 +260,10 @@ public class Sender extends STPConnection {
     protected void onPacketReceived(STPPacket packet) {
         if (isConnected()) {
             if (packet.isFlagSet(STPPacket.ACK)) {
-                if (packet.getAck() == reTranACK && reTranNum == 3) {
+                if(calculator != null){
+                    calculator.onPacketReceived(packet);
+                }
+                if (packet.getAck() < lastSeq && packet.getAck() == reTranACK && reTranNum == 3) {
                     //System.err.println("Fast retransmit!");
                     try {
                         retransmit();
@@ -334,6 +344,10 @@ public class Sender extends STPConnection {
                 }
                 getLogger().log(data.length, dataSegmentSent, drops, delayed, retransmitted, duplicateACK);
                 setState(State.FINISH);
+                if(calculator != null){
+                    calculator.finish();
+                }
+
                 System.exit(1);
             } else {
                 System.out.println("ERROR! FIN");

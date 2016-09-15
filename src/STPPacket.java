@@ -18,6 +18,7 @@ public class STPPacket implements Comparator<STPPacket>, Comparable<STPPacket> {
     // 1 -- SYN
     // 2 -- FIN
     // 3-7 reserved.
+    // 8-15 I simply want an even number for packet header, so let's leave 1 byte there.
     private boolean[] flags = new boolean[8];
     //data
     private byte[] data = null;
@@ -41,11 +42,11 @@ public class STPPacket implements Comparator<STPPacket>, Comparable<STPPacket> {
         mss = PacketUtils.get4BytesInt(packet, 8);  //now at 11
         //bits to boolean
         for (int i = 0; i < 8; i++) {
-            if (i < 4) {
-                flags[i] = (packet[12] & (0b00000001 << i)) != 0;
-            } else {
-                flags[i] = (packet[13] & (0b00000001 << i)) != 0;
-            }
+          // if (i < 8) {
+               flags[i] = (packet[12] & (0b00000001 << i)) != 0;
+           //}else {
+               //   flags[i] = (packet[13] & (0b00000001 << i)) != 0; //so many flags, no, I do not really need those
+          // }
         }
         // now at 13
         if (HEADER_SIZE != packet.length) {

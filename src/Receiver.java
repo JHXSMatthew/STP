@@ -34,6 +34,10 @@ public class Receiver extends STPConnection {
         Receiver receiver = new Receiver(port, fileName);
     }
 
+    /**
+     *
+     * @param data the string to write to the file
+     */
     private void write(String data) {
         try {
             if (writer == null) {
@@ -53,6 +57,7 @@ public class Receiver extends STPConnection {
 
     /**
      *  try to get a cumulative the Ack number
+     *  selective ack
      */
     private void checkBuffer() {
         STPPacket packet = buffer.peek();
@@ -104,6 +109,7 @@ public class Receiver extends STPConnection {
                 dataSegmentReceived ++;
                 lastAck += packet.getDataLength();
                 write(packet.getDataString());
+                // I really should delay it and see if next packet arrives, however, spec says I should not delay it. :(
             } else if (packet.getSeq() > lastAck) {
                 boolean b = false;
                 for (STPPacket temp : buffer) {
