@@ -104,14 +104,6 @@ public abstract class STPConnection {
     }
 
     /**
-     *
-     * @param packet send ack for this packet
-     */
-    protected void sendAck(STPPacket packet){
-
-    }
-
-    /**
      * explicitly set mss
      *
      * @param mss the mss to set

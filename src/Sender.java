@@ -78,9 +78,9 @@ public class Sender extends STPConnection {
         Scanner scanner = new Scanner(new File(args[2]), "ASCII");
         while (scanner.hasNextLine()) {
             builder.append(scanner.nextLine());
+            builder.append("\n");
         }
         byte[] data = builder.toString().getBytes();
-        System.out.println("get " + data.length + " bytes to send!");
         int mws = Integer.parseInt(args[3]);
         int mss = Integer.parseInt(args[4]);
 
@@ -96,6 +96,24 @@ public class Sender extends STPConnection {
         }
     }
 
+    @Override
+    public void sendPacket(STPPacket packet) throws IOException {
+        lastSeq += packet.getDataLength();
+        if(packet.getFlagString().equals("D")){
+            dataSegmentSent ++;
+            if (random.nextDouble() < pdrop) {
+                dropPacket(packet);
+                drops++;
+                return;
+            }
+        }
+        super.sendPacket(packet);
+    }
+
+    /**
+     *  the method to retransmit packets
+     * @throws IOException fail to send packet
+     */
     public void retransmit() throws IOException {
         //retransmit packet last ACK
         if (FINCheck())
@@ -138,20 +156,6 @@ public class Sender extends STPConnection {
         watchdog.feed();
     }
 
-    @Override
-    public void sendPacket(STPPacket packet) throws IOException {
-        lastSeq += packet.getDataLength();
-        if(packet.getFlagString().equals("D")){
-            dataSegmentSent ++;
-            if (random.nextDouble() < pdrop) {
-                dropPacket(packet);
-                drops++;
-                return;
-            }
-        }
-        super.sendPacket(packet);
-    }
-
 
     /**
      * sender First SYN handshake
@@ -189,6 +193,24 @@ public class Sender extends STPConnection {
         sendPacket(packet);
     }
 
+    /**
+     *  clean all acked packets in the sender window
+     * @param packet the packet just received.
+     */
+    private void cleanWindow(STPPacket packet){
+        STPPacket unACKPacket = packetWindow.peek();
+        while (unACKPacket != null && unACKPacket.getSeq() + unACKPacket.getDataLength() <= packet.getAck()) {
+            unACKPacket = packetWindow.poll();
+            if (packetWindow.isEmpty()) {
+                break;
+            }
+            unACKPacket = packetWindow.peek();
+            watchdog.feed();
+        }
+    }
+    /**
+     * the method to fill the sender window
+     */
     private void fillWindow() {
         while (packetWindow.size() < MAX_PACKET && pointer < data.length) {
             int to = pointer + mss;
@@ -202,18 +224,6 @@ public class Sender extends STPConnection {
             PacketUtils.setHeader(send, lastSeq, lastAck);
             send.setMss(to - pointer);
             packetWindow.add(send);
-            /*System.out.println("add packet " + pointer + "-"+ to + "packet : " );
-
-            try {
-                System.out.write(buffer);
-                System.out.println();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            */
-
-            //lastSeq += (to - pointer);
-            //System.out.println("Last SEQ " + lastSeq);
             pointer = to;
             try {
                 sendPacket(send);
@@ -244,23 +254,14 @@ public class Sender extends STPConnection {
         if (isConnected()) {
             if (packet.isFlagSet(STPPacket.ACK)) {
                 if (packet.getAck() == reTranACK && reTranNum == 3) {
-                    System.err.println("Fast retransmit!");
+                    //System.err.println("Fast retransmit!");
                     try {
                         retransmit();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 } else {
-                    STPPacket unACKPacket = packetWindow.peek();
-                    while (unACKPacket != null && unACKPacket.getSeq() + unACKPacket.getDataLength() <= packet.getAck()) {
-                        unACKPacket = packetWindow.poll();
-                        if (packetWindow.isEmpty()) {
-                            break;
-                        }
-                        unACKPacket = packetWindow.peek();
-                        watchdog.feed();
-                    }
-
+                    cleanWindow(packet);
                     fillWindow();
                 }
                 if (reTranACK != packet.getAck()) {
@@ -289,7 +290,6 @@ public class Sender extends STPConnection {
         if (address.equals(this.address) && port == this.port) {
             if(lastAck != -1)
                 return;
-
             if (packet.isFlagSet(STPPacket.SYN) && packet.isFlagSet(STPPacket.ACK) && packet.getAck() == lastSeq) {
                 watchdog.feed();
                 packetWindow.clear();
@@ -304,9 +304,6 @@ public class Sender extends STPConnection {
                     e.printStackTrace();
                 }
                 connectionSetUp(address, port);
-                //System.out.println("Handshake Done!");
-                //send begin
-                //setMss(mss);
                 fillWindow();
                 watchdog.reset();
 
@@ -319,6 +316,7 @@ public class Sender extends STPConnection {
     protected void onFinPacketReceived(STPPacket packet) {
         if (packet.isFlagSet(STPPacket.ACK)) {
             if (packet.getAck() == lastSeq) {
+                cleanWindow(packet);
                 lastAck++;
             } else {
                 System.out.println("ERROR! ACK");

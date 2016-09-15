@@ -51,6 +51,9 @@ public class Receiver extends STPConnection {
         }
     }
 
+    /**
+     *  try to get a cumulative the Ack number
+     */
     private void checkBuffer() {
         STPPacket packet = buffer.peek();
         if (packet == null) {
@@ -65,7 +68,6 @@ public class Receiver extends STPConnection {
             }
             packet = buffer.peek();
         }
-
     }
 
 
@@ -119,11 +121,7 @@ public class Receiver extends STPConnection {
             }else{
                 duplicatedSegment ++;
             }
-            try {
-                checkBuffer();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            checkBuffer();
             STPPacket packet1 = new STPPacket(null);
             PacketUtils.setHeader(packet1, lastSeq, lastAck);
             packet1.setFlags(true, STPPacket.ACK);
