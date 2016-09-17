@@ -7,6 +7,7 @@ import java.util.PriorityQueue;
 
 /**
  * Created by Matthew on 5/09/2016.
+ * The receiver
  */
 public class Receiver extends STPConnection {
 
@@ -35,7 +36,6 @@ public class Receiver extends STPConnection {
     }
 
     /**
-     *
      * @param data the string to write to the file
      */
     private void write(String data) {
@@ -56,8 +56,8 @@ public class Receiver extends STPConnection {
     }
 
     /**
-     *  try to get a cumulative the Ack number
-     *  selective ack
+     * try to get a cumulative the Ack number
+     * selective ack
      */
     private void checkBuffer() {
         STPPacket packet = buffer.peek();
@@ -106,7 +106,7 @@ public class Receiver extends STPConnection {
         } else {
             if (packet.getSeq() == lastAck) {
                 //correct packet order
-                dataSegmentReceived ++;
+                dataSegmentReceived++;
                 lastAck += packet.getDataLength();
                 write(packet.getDataString());
                 // I really should delay it and see if next packet arrives, however, spec says I should not delay it. :(
@@ -120,12 +120,12 @@ public class Receiver extends STPConnection {
                 }
                 if (!b) {
                     buffer.add(packet);
-                    dataSegmentReceived ++;
+                    dataSegmentReceived++;
                 } else {
-                    duplicatedSegment ++;
+                    duplicatedSegment++;
                 }
-            }else{
-                duplicatedSegment ++;
+            } else {
+                duplicatedSegment++;
             }
             checkBuffer();
             STPPacket packet1 = new STPPacket(null);
@@ -145,7 +145,7 @@ public class Receiver extends STPConnection {
             return;
         }
         if (packet.isFlagSet(STPPacket.SYN)) {
-            if(lastAck != -1)
+            if (lastAck != -1)
                 return;
 
             super.bufferPacketInfo(address, port);
@@ -182,7 +182,7 @@ public class Receiver extends STPConnection {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                getLogger().log(dataReceived,dataSegmentReceived,duplicatedSegment);
+                getLogger().log(dataReceived, dataSegmentReceived, duplicatedSegment);
                 setState(State.FINISH);
                 System.exit(1);
             } else {

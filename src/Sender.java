@@ -9,10 +9,12 @@ import java.util.Scanner;
 
 /**
  * Created by Matthew on 5/09/2016.
+ * The Sender
  */
 public class Sender extends STPConnection {
 
 
+    private static boolean CALCULATOR = false;
     //file data
     private byte[] data;
     private int pointer = 0;
@@ -21,9 +23,8 @@ public class Sender extends STPConnection {
     private int port;
     private int mss;
     private int mws;
-    private double pdrop = 0;
     //dynamic sender data
-
+    private double pdrop = 0;
     private PriorityQueue<STPPacket> packetWindow;
     private SenderWatchdog watchdog = null;
     private Random random;
@@ -37,9 +38,7 @@ public class Sender extends STPConnection {
     private int delayed = 0;
     private int retransmitted = 0;
     private int duplicateACK = 0;
-
     private RTTCalculator calculator;
-    private static boolean CALCULATOR = false;
 
     public Sender(final String address, final int port, byte[] data, int mws, int mss, int timeout, double pdrop, long seed) throws SocketException {
         super();
@@ -48,14 +47,14 @@ public class Sender extends STPConnection {
         this.watchdog = new SenderWatchdog(this, timeout);
         this.mss = mss;
         this.mws = mws;
-        if(mws < mss){ //TODO: not sure if this situation happens
+        if (mws < mss) { //TODO: not sure if this situation happens
             mss = mws;
         }
         this.data = data;
         packetWindow = new PriorityQueue<>();
         random = new Random(seed);
         this.pdrop = pdrop;
-        //TODO: confirm if this should be random
+        //TODO: confirm if this should be random, anyway, leave it not random for now, IT SHOULD BE SOMEHOW RANDOM
         //lastSeq = random.nextInt();
         lastSeq = 0;
         //=============================== First SYN ==========================
@@ -68,7 +67,7 @@ public class Sender extends STPConnection {
         watchdog.reset();
         //=============================== Listen ==========================
         MAX_PACKET = mws / mss;
-        if(CALCULATOR){
+        if (CALCULATOR) {
             calculator = new RTTCalculator();
         }
         listen(0);
@@ -103,22 +102,23 @@ public class Sender extends STPConnection {
     @Override
     public void sendPacket(STPPacket packet) throws IOException {
         lastSeq += packet.getDataLength();
-        if(packet.getFlagString().equals("D")){
-            dataSegmentSent ++;
+        if (packet.getFlagString().equals("D")) {
+            dataSegmentSent++;
             if (random.nextDouble() < pdrop) {
                 dropPacket(packet);
                 drops++;
                 return;
             }
         }
-        if(calculator != null){
+        if (calculator != null) {
             calculator.onPacketSend(packet);
         }
         super.sendPacket(packet);
     }
 
     /**
-     *  the method to retransmit packets
+     * the method to retransmit packets
+     *
      * @throws IOException fail to send packet
      */
     public void retransmit() throws IOException {
@@ -128,15 +128,15 @@ public class Sender extends STPConnection {
 
         //selective repeat
         STPPacket current = packetWindow.peek();
-        if(isConnected()){
+        if (isConnected()) {
             if (random.nextFloat() < pdrop) {
                 dropPacket(current);
                 drops++;
-            }else{
+            } else {
                 super.sendPacket(current);
             }
-            retransmitted ++;
-        }else{
+            retransmitted++;
+        } else {
             sendUnsafePacket(current, address, port);
             //retransmitted ++; HANDSHAKE PACKET RESENT SHOULD NOT BE TAKEN INTO ACCOUNT!!!!
         }
@@ -201,10 +201,11 @@ public class Sender extends STPConnection {
     }
 
     /**
-     *  clean all acked packets in the sender window
+     * clean all acked packets in the sender window
+     *
      * @param packet the packet just received.
      */
-    private void cleanWindow(STPPacket packet){
+    private void cleanWindow(STPPacket packet) {
         STPPacket unACKPacket = packetWindow.peek();
         while (unACKPacket != null && unACKPacket.getSeq() + unACKPacket.getDataLength() <= packet.getAck()) {
             unACKPacket = packetWindow.poll();
@@ -215,6 +216,7 @@ public class Sender extends STPConnection {
             watchdog.feed();
         }
     }
+
     /**
      * the method to fill the sender window
      */
@@ -260,7 +262,7 @@ public class Sender extends STPConnection {
     protected void onPacketReceived(STPPacket packet) {
         if (isConnected()) {
             if (packet.isFlagSet(STPPacket.ACK)) {
-                if(calculator != null){
+                if (calculator != null) {
                     calculator.onPacketReceived(packet);
                 }
                 if (packet.getAck() < lastSeq && packet.getAck() == reTranACK && reTranNum == 3) {
@@ -278,7 +280,7 @@ public class Sender extends STPConnection {
                     reTranACK = packet.getAck();
                     reTranNum = 0;
                 } else {
-                    duplicateACK ++;
+                    duplicateACK++;
                     reTranNum++;
                 }
                 if (FINCheck())
@@ -298,7 +300,7 @@ public class Sender extends STPConnection {
             return;
         }
         if (address.equals(this.address) && port == this.port) {
-            if(lastAck != -1)
+            if (lastAck != -1)
                 return;
             if (packet.isFlagSet(STPPacket.SYN) && packet.isFlagSet(STPPacket.ACK) && packet.getAck() == lastSeq) {
                 watchdog.feed();
@@ -326,8 +328,9 @@ public class Sender extends STPConnection {
     protected void onFinPacketReceived(STPPacket packet) {
         if (packet.isFlagSet(STPPacket.ACK)) {
             if (packet.getAck() == lastSeq) {
-                cleanWindow(packet);
+                packetWindow.clear();
                 lastAck++;
+                watchdog.feed();
             } else {
                 System.out.println("ERROR! ACK");
                 System.out.println(packet.getAck() + " " + lastSeq);
@@ -344,7 +347,7 @@ public class Sender extends STPConnection {
                 }
                 getLogger().log(data.length, dataSegmentSent, drops, delayed, retransmitted, duplicateACK);
                 setState(State.FINISH);
-                if(calculator != null){
+                if (calculator != null) {
                     calculator.finish();
                 }
 

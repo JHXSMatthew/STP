@@ -1,5 +1,6 @@
 /**
- * Created by Matthew on 5/09/2016.
+ * Created by Matthew on 5/09/2016
+ * some help method for packets.
  */
 public class PacketUtils {
 

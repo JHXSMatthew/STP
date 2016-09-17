@@ -4,6 +4,7 @@ import java.util.TimerTask;
 
 /**
  * Created by Matthew on 12/09/2016.
+ * watchdog timer for retransmission
  */
 public class SenderWatchdog {
 
@@ -19,7 +20,9 @@ public class SenderWatchdog {
         this.timeout = timeout;
     }
 
-
+    /**
+     * time's up
+     */
     public void bite() {
         try {
             //System.out.println("Timer timeout!");
@@ -29,11 +32,17 @@ public class SenderWatchdog {
         }
     }
 
+    /**
+     * feed the watchdog
+     */
     public void feed() {
         this.count = timeout;
     }
 
 
+    /**
+     * reset the watchdog
+     */
     public void reset() {
         try {
             timerTask.cancel();

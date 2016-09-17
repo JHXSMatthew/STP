@@ -3,6 +3,7 @@ import java.util.Comparator;
 
 /**
  * Created by Matthew on 5/09/2016.
+ * The STP packet
  */
 public class STPPacket implements Comparator<STPPacket>, Comparable<STPPacket> {
     // constant for checking flags
@@ -42,11 +43,11 @@ public class STPPacket implements Comparator<STPPacket>, Comparable<STPPacket> {
         mss = PacketUtils.get4BytesInt(packet, 8);  //now at 11
         //bits to boolean
         for (int i = 0; i < 8; i++) {
-          // if (i < 8) {
-               flags[i] = (packet[12] & (0b00000001 << i)) != 0;
-           //}else {
-               //   flags[i] = (packet[13] & (0b00000001 << i)) != 0; //so many flags, no, I do not really need those
-          // }
+            // if (i < 8) {
+            flags[i] = (packet[12] & (0b00000001 << i)) != 0;
+            //}else {
+            //   flags[i] = (packet[13] & (0b00000001 << i)) != 0; //so many flags, no, I do not really need those
+            // }
         }
         // now at 13
         if (HEADER_SIZE != packet.length) {

@@ -6,38 +6,48 @@ import java.net.SocketException;
 
 /**
  * Created by Matthew on 5/09/2016.
+ * STP "socket"
  */
 public abstract class STPConnection {
 
+    protected int lastSeq = 0;
+    protected int lastAck = -1;
     private DatagramSocket socket;
     private State state = State.STOP;
-    private long time = System.currentTimeMillis();
-
+    private long time = System.nanoTime() / 1000000;
     private String connectionAddress = "nohting";
     private int connectionPort;
     private PacketLogger logger;
-
     private DatagramPacket packet; // track last packet received.
-
     private int mss = 0;
-    protected int lastSeq = 0;
-    protected int lastAck = -1;
 
+    /**
+     * sender constructor
+     *
+     * @throws SocketException
+     */
     public STPConnection() throws SocketException {
         socket = new DatagramSocket();
         logger = new PacketLogger("Sender_log.txt");
     }
 
+    /**
+     * receiver constructor
+     *
+     * @param port the port to listen on
+     * @throws SocketException
+     */
     public STPConnection(int port) throws SocketException {
         socket = new DatagramSocket(port);
         logger = new PacketLogger("Receiver_log.txt");
     }
 
 
-
+    /**
+     * @param mss the receiving segment size of UDP, or in other word, MSS of STP
+     */
 
     protected void listen(int mss) {
-        //System.out.println("Listen on " + socket.getLocalPort());
         this.mss = mss;
         while (state != State.FINISH) {
             packet = new DatagramPacket(new byte[this.mss + STPPacket.HEADER_SIZE], this.mss + STPPacket.HEADER_SIZE);
@@ -88,17 +98,27 @@ public abstract class STPConnection {
     }
 
 
+    /**
+     * @param packet the packet to check
+     * @return if the packet is reliable, refuse to accept packet from other IP or port of both.
+     */
     public boolean reliable(DatagramPacket packet) {
         return (state == State.ESTABLISHED || state == State.FIN) && packet.getPort() == this.connectionPort && packet.getAddress().getHostAddress().equals(connectionAddress);
     }
 
+    /**
+     * @return check check
+     */
     public boolean isConnected() {
         return state == State.ESTABLISHED;
     }
 
+    /**
+     * @param state the general connection state
+     */
     protected void setState(State state) {
         this.state = state;
-        if(state == State.FINISH){
+        if (state == State.FINISH) {
             logger.save();
         }
     }
@@ -139,14 +159,28 @@ public abstract class STPConnection {
         sendUnsafePacket(packet, connectionAddress, connectionPort);
     }
 
+    /**
+     * simulate packet drop
+     *
+     * @param packet packet drop
+     */
     protected void dropPacket(STPPacket packet) {
         logger.log(PacketLogger.PacketType.drop, getTime(), packet);
     }
 
-    protected PacketLogger getLogger(){
+    /**
+     * @return the logger
+     */
+    protected PacketLogger getLogger() {
         return logger;
     }
 
+    /**
+     * call this once handshake successes
+     *
+     * @param address the destination address
+     * @param port    the destination port
+     */
     protected void connectionSetUp(String address, int port) {
         this.connectionAddress = address;
         this.connectionPort = port;
@@ -154,8 +188,11 @@ public abstract class STPConnection {
     }
 
 
+    /**
+     * @return the time
+     */
     private double getTime() {
-        return System.currentTimeMillis() - time;
+        return (double) System.nanoTime() / 1000000 - time;
     }
 
     protected abstract void onPacketReceived(STPPacket packet);
